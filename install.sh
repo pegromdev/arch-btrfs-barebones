@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 
+
+echo "\n #################################################### \n$HR"
+echo "\n Arch linux Bare-Bones BTRFS automatic Installation.  \n$HR"
+echo "\n #################################################### \n$HR"
+
+echo "\n Please provide necesarie system information up next: \n$HR"
+
 lsblk
+
 echo "Please enter the drive you will use (example /dev/sda)"
 read DRIVE																	
 echo "Please enter the partition for full system installation: (example /dev/sda1)"
@@ -30,68 +38,65 @@ swapon ${SWAPDISK}
 echo -e "\nMounting BTRFS subvolumes...\n$HR"
 mount ${MAINDISK} /mnt
 btrfs su cr /mnt/@
-btrfs su cr /mnt/@boot
 btrfs su cr /mnt/@home
-btrfs su cr /mnt/@var
-btrfs su cr /mnt/@opt
-btrfs su cr /mnt/@tmp
+btrfs su cr /mnt/@boot
+btrfs su cr /mnt/@cache
+btrfs su cr /mnt/@log
 btrfs su cr /mnt/@.snapshots
 umount /mnt
 
 # creating folders to mount the other subvolumes at
 mount -o noatime,commit=120,compress=zstd,space_cache,subvol=@ ${MAINDISK} /mnt
-mkdir /mnt/{boot,home,var,opt,tmp,.snapshots}
+mkdir /mnt/{boot,home,var/cache,var/log,.snapshots}
 mount -o subvol=@boot ${MAINDISK} /mnt/boot
 mount -o noatime,commit=120,compress=zstd,space_cache,subvol=@home ${MAINDISK} /mnt/home
-mount -o noatime,commit=120,compress=zstd,space_cache,subvol=@opt ${MAINDISK} /mnt/opt
-mount -o noatime,commit=120,compress=zstd,space_cache,subvol=@tmp ${MAINDISK} /mnt/tmp
+mount -o noatime,commit=120,compress=zstd,space_cache,subvol=@cache ${MAINDISK} /mnt/var/cache
+mount -o noatime,commit=120,compress=zstd,space_cache,subvol=@log ${MAINDISK} /mnt/var/log
 mount -o noatime,commit=120,compress=zstd,space_cache,subvol=@.snapshots ${MAINDISK} /mnt/.snapshots
-mount -o subvol=@var ${MAINDISK} /mnt/var
 
 
-echo "-- Installing Arch on Main Drive       --"
+echo "\n-- Installing Arch on Main Driven\n$HR"
 pacstrap /mnt base base-devel ${LINUXKERNEL} ${LINUXKERNEL}-headers linux-firmware ${UCODE} btrfs-progs sudo --noconfirm --needed
 
-echo "-- Post install main configuration run...     --"
+echo "\n--	Generating fstab\n$HR"
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
 cat /mnt/etc/fstab
 
-
-echo "--	Ch-rooting into install mount point"
+echo "\n--	Ch-rooting into install mount point\n$HR"
 arch-chroot /mnt
 
-echo "-- installing grub networkmanager & vim"
+echo "\n-- Installing some basic tools\n$HR"
 pacman -S grub networkmanager vim --noconfirm --needed
 
-echo "--	Configuring Grub"
+echo "\n--	Configuring Grub\n$HR"
 grub-install --target=i386-pc ${DRIVE}
 grub-mkconfig -o /boot/grub/grub.cfg
 
-echo "--	Seting up timezone"
+echo "\n--	Establishing timezone\n$HR"
 timedatectl --no-ask-password set-timezone ${TIMEZONE}
 
-echo "--	Syncing hardware and system clock"
+echo "\n--	Syncing hardware and system clock\n$HR"
 hwclock --systohc
 
-echo "--	Setting System Locale"
+echo "\n--	Stating Locale\n$HR"
 localectl --no-ask-password set-locale LANG="${LOCALE}"
 localectl --no-ask-password set-locale LC_TIME="${LOCALE}"
 locale-gen
 echo LANG=${LOCALE} >> /etc/locale.conf
 
-echo "--	Writting Hostname"
+echo "\n--	Writting Hostname\n$HR"
 echo ${HOSTNAME} >> /etc/hostname
 
-echo "--	Network Setup almost done..."
+echo "\n--	Starting Network Service, almost done...\n$HR"
 systemctl enable NetworkManager
 systemctl start NetworkManager
 
-echo "--	Set Password for Root"
+echo "\n--	Pease set Password for Root\n$HR"
 echo "Enter password for root user: "
 passwd
 
-echo "--	Creating main  user"
+echo "\n--	Creating main  user\n$HR"
 useradd -mG wheel ${USER}
 echo "Enter password for user niko"
 passwd ${USER}
